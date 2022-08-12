@@ -26,6 +26,7 @@ program
     .option('-p, --prod', 'Only inspect packages used for prod deployment (no devDependencies)', false)
     .option('-u, --without-url', 'Excludes repository and license url from output', false)
     .option('-t, --without-parent', 'Excludes the parent information', false)
+    .option('--include-license-text', 'Include the license text in json output', false)
     .option('-s, --short', 'Excludes the urls and parent information from output', false)
     .option('-v, --verbose', 'Enable verbose program output', false)
     .option('-q, --quiet', 'Force quiet mode on stdout (if errors are thrown they are still outputted but they are printed to stderr)', false)
@@ -76,7 +77,7 @@ async function scan(program, isComineMode) {
         };
     }
 
-    const [mods, modsWithout] = extractLicenses(modulesMap, modules, program.withoutUrl);
+    const [mods, modsWithout] = extractLicenses(modulesMap, modules, program.withoutUrl, program.includeLicenseText);
 
     if (modsWithout.length > 0) {
         console.error(`${chalk.yellow("WARNING:")} Found ${modsWithout.length} modules which could not be inspected:`);
@@ -99,7 +100,7 @@ async function scan(program, isComineMode) {
     if (!isComineMode) {
         // Write all data to JSON file
         if (program.json) {
-            if (!writeJsonResultFile(program.json, mods, program.withoutUrl, program.withoutParent)) {
+            if (!writeJsonResultFile(program.json, mods, program.withoutUrl, program.withoutParent, program.includeLicenseText)) {
                 return {
                     exitCode: 1,
                     mods: []
@@ -267,7 +268,7 @@ async function main() {
 
         // Write all data to JSON file
         if (program.json) {
-            writeJsonResultFile(program.json, allMods, program.withoutUrl, program.withoutParent);
+            writeJsonResultFile(program.json, allMods, program.withoutUrl, program.withoutParent, program.includeLicenseText);
         }
 
         // Write all data to CSV file
