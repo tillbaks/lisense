@@ -413,17 +413,26 @@ function extractLicenses(moduleMap, modules, withoutUrls, includeLicenseText) {
             pkgJson.license = tryFallbackLicenseDetection(pkgJsonPath, _module);
         }
 
-        let licenseFileText
+        let licenseFileText;
+        let licenseNoticeText;
 
         if (includeLicenseText) {
-          const licenseFilePath = _module.find((p) => (p.toLowerCase().indexOf('license') > -1));
-          if (licenseFilePath) {
-            try {
-                licenseFileText = fs.readFileSync(licenseFilePath).toString()
-            } catch(error) {
-                log("ERROR: unable to read license text from file:", licenseFilePath)
+            const licenseFilePath = _module.find((p) => (p.toLowerCase().indexOf('license') > -1));
+            if (licenseFilePath) {
+                try {
+                    licenseFileText = fs.readFileSync(licenseFilePath).toString();
+                } catch (error) {
+                    log("ERROR: unable to read license text from file:", licenseFilePath);
+                }
             }
-          }
+            const noticeFilePath = _module.find((p) => (p.toLowerCase() === 'notice'));
+            if (noticeFilePath) {
+                try {
+                    licenseNoticeText = fs.readFileSync(noticeFilePath).toString();
+                } catch (error) {
+                    log("ERROR: unable to read license notice text from file:", noticeFilePath);
+                }
+            }
         }
 
 
@@ -444,21 +453,22 @@ function extractLicenses(moduleMap, modules, withoutUrls, includeLicenseText) {
             if ((typeof pkgJson.license) === 'object' && pkgJson.license.type) {
                 pkgJson.license = pkgJson.license.type;
             }
-            
+
             let license = {
-              name: modules[i],
-              license: pkgJson.license || pkgJson.licenses,
-              version: pkgJson.version,
-              originalPaths: moduleMap[modules[i]],
+                name: modules[i],
+                license: pkgJson.license || pkgJson.licenses,
+                version: pkgJson.version,
+                originalPaths: moduleMap[modules[i]],
             };
-            
+
             if (!withoutUrls) {
-              license.url = licenseFileUrl;
-              license.repoBaseUrl = sourceBase;
+                license.url = licenseFileUrl;
+                license.repoBaseUrl = sourceBase;
             }
-            
+
             if (includeLicenseText) {
-              license.licenseText = licenseFileText
+                license.licenseText = licenseFileText;
+                license.licenseNoticeText = licenseNoticeText;
             }
 
             modulesWithLicenses.push(license);
@@ -487,7 +497,8 @@ function writeJsonResultFile(filename, modules, withoutUrls, withoutParent, incl
         }
 
         if (includeLicenseText) {
-          fields.licenseText = mod.licenseText
+            fields.licenseText = mod.licenseText;
+            fields.licenseNoticeText = mod.licenseNoticeText;
         }
 
         return fields;
