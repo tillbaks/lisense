@@ -117,6 +117,7 @@ async function getProdPackages(baseDir, pedantic) {
 
     const pending = [baseDir];
     const visited = [];
+    const optional = [];
 
     do {
         const relPath = pending.pop();
@@ -124,6 +125,16 @@ async function getProdPackages(baseDir, pedantic) {
 
         try {
             const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath).toString());
+
+            if (pkgJson.optionalDependencies){
+                const pkgs = Object.getOwnPropertyNames(pkgJson.optionalDependencies);
+                for (let i = 0; i < pkgs.length; i++) {
+                    if (optional.includes(pkgs[i])) {
+                        continue; // Already optional!
+                    }
+                    optional.push(pkgs[i]);
+                }
+            }
 
             if (pkgJson.dependencies) {
                 const pkgs = Object.getOwnPropertyNames(pkgJson.dependencies);
@@ -160,9 +171,10 @@ async function getProdPackages(baseDir, pedantic) {
     }
 
     log(`Found ${visited.length} packages for prod!`);
+    log(`Found ${optional.length} optional packages for prod!`);
 
 
-    return visited;
+    return [visited, optional];
 }
 
 /*
@@ -318,7 +330,8 @@ function scanNodeModules(baseDir) {
 async function filterModulesByProd(baseDir, modules, pedantic) {
     const log = debug('filterModulesByProd');
 
-    const prodPackages = await getProdPackages(baseDir, pedantic);
+    let optionalNotInstalled = 0;
+    const [prodPackages, optionalProdPackages] = await getProdPackages(baseDir, pedantic);
     log(`${prodPackages.length} PROD node_modules found!`);
 
     // Reduce the set
@@ -326,12 +339,15 @@ async function filterModulesByProd(baseDir, modules, pedantic) {
     for (let i = 0; i < prodPackages.length; i++) {
         if (modules.includes(prodPackages[i])) {
             tmpSelected.push(prodPackages[i]);
+        } else if(optionalProdPackages.includes(prodPackages[i])){
+            optionalNotInstalled++;
+            log("Optional dependency not installed:", prodPackages[i]);
         } else {
             log("Could not find module:", prodPackages[i]);
         }
     }
 
-    if (prodPackages.length !== tmpSelected.length) {
+    if (prodPackages.length !== tmpSelected.length + optionalNotInstalled) {
         console.error("ERROR: Number of packages differs: ", prodPackages.length, tmpSelected.length);
         console.error("You might want to run `npm i` to solve this problem since most of the time it causes this issue!");
         return null;
